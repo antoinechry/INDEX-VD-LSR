@@ -12,7 +12,7 @@
 :root{
   --bg:#f3f5f7; --surface:#ffffff; --fg:#1b2127; --muted:#5d6873; --line:#dde2e7;
   --accent:#d9661a; --point:#4b3fa8;
-  --z-gris:#a3a6ab; --z-rouge:#ef9a9a; --z-bleu:#93c4f0; --z-vert:#93e0b2; --z-blanc:#e6e8ea;
+  --z-gris:#6b7078; --z-rouge:#ef9a9a; --z-bleu:#93c4f0; --z-vert:#93e0b2; --z-blanc:#ffffff;
   --z-blanc-ink:#7a8088;
   --f-display:"Barlow Condensed","Arial Narrow",sans-serif;
   --f-body:"Barlow",system-ui,-apple-system,"Segoe UI",sans-serif;
@@ -20,12 +20,12 @@
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
   --bg:#14181c; --surface:#1d2227; --fg:#e8ecef; --muted:#9aa5af; --line:#2f363d;
   --accent:#f08a3e; --point:#a99cff;
-  --z-gris:#6f7378; --z-rouge:#b85a5a; --z-bleu:#4f86b8; --z-vert:#4a9e6c; --z-blanc:#c9cdd1; --z-blanc-ink:#c9cdd1;
+  --z-gris:#555a60; --z-rouge:#b85a5a; --z-bleu:#4f86b8; --z-vert:#4a9e6c; --z-blanc:#f2f4f6; --z-blanc-ink:#c9cdd1;
   color-scheme:dark}}
 :root[data-theme="dark"]{
   --bg:#14181c; --surface:#1d2227; --fg:#e8ecef; --muted:#9aa5af; --line:#2f363d;
   --accent:#f08a3e; --point:#a99cff;
-  --z-gris:#6f7378; --z-rouge:#b85a5a; --z-bleu:#4f86b8; --z-vert:#4a9e6c; --z-blanc:#c9cdd1; --z-blanc-ink:#c9cdd1;
+  --z-gris:#555a60; --z-rouge:#b85a5a; --z-bleu:#4f86b8; --z-vert:#4a9e6c; --z-blanc:#f2f4f6; --z-blanc-ink:#c9cdd1;
   color-scheme:dark}
 *{box-sizing:border-box}
 body{background:var(--bg);color:var(--fg);font-family:var(--f-body);font-size:15px;line-height:1.5;
@@ -297,7 +297,8 @@ function themeChart(){
   chart.options.scales.x.ticks.color=fg;chart.options.scales.y.ticks.color=fg;
   chart.options.scales.x.title.color=fg;chart.options.scales.y.title.color=fg;
   chart.options.scales.x.grid.color=line;chart.options.scales.y.grid.color=line;
-  ZONES.forEach((z,i)=>{chart.data.datasets[i].backgroundColor=css(z.v)+"bb"});
+  ZONES.forEach((z,i)=>{chart.data.datasets[i].backgroundColor=css(z.v)+(i===0||i===4?"":"bb")});
+  const edge=chart.data.datasets[5];edge.borderWidth=1.5;edge.borderColor=css("--z-blanc-ink");
   const pts=chart.data.datasets[6];pts.backgroundColor=css("--point");pts.borderColor=css("--point");
   const reg=chart.data.datasets[7];reg.borderColor=css("--accent");
 }
