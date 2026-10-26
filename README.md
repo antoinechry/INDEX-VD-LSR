@@ -8,7 +8,11 @@ Chaque sortie vélo est placée sur un graphique VD+ / pente moyenne, avec les z
 
 VD+ = (Distance + D+ / xx) / temps = V + VAM / xx
 
-Avec xx = 50, c'est le calcul de tête V (km/h) + 2 × VAM (en centaines de mètres).
+Le graphique porte la **vitesse réelle** de chaque sortie en fonction de sa pente moyenne. Les zones de couleur sont des bandes de **VD+ constant**, ramenées en vitesse : comme VAM = V × 10 × pente (%), on a V = VD+ / (1 + 10 × pente / xx). La décroissance des zones est donc fixée par xx.
+
+xx = 100 reproduit le graphique d'origine. Le calcul de tête V (km/h) + 2 × VAM (en centaines de mètres) correspond à xx = 50.
+
+Le bon xx est celui qui rend la régression du VD+ d'un rider plate. La page le calcule pour chaque rider ; la médiane sur le club donne le xx à retenir.
 
 ## Terrains
 
@@ -37,6 +41,6 @@ Les sorties de plus de 3,5 % de pente moyenne sont écartées, trop spécifiques
 
 ## Statut
 
-Prototype. Les limites des zones (39, 35, 31, 27, 23, 19 km/h sur le plat, −8,5 % par point de pente) sont relevées à l'œil sur le graphique d'origine et restent à calibrer avec les données de plusieurs riders.
+Prototype. Les limites des zones (VD+ de 39, 35, 31, 27, 23 et 19 km/h) sont relevées à l'œil sur le graphique d'origine. Le xx reste à calibrer avec les données de plusieurs riders.
 
 Page unique, sans build : ouvrir `index.html` ou passer par GitHub Pages.
