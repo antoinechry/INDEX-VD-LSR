@@ -74,6 +74,11 @@ button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline
 .field{display:flex;flex-direction:column;gap:4px;flex:1;min-width:110px}
 .field span{font-size:.8rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 input[type=number]{font:inherit;font-size:1.1rem;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:var(--bg);color:var(--fg);width:100%;font-variant-numeric:tabular-nums}
+.vdplus{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.vdplus div{border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px}
+.vdplus span{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.vdplus b{font-family:var(--f-display);font-size:2rem;line-height:1.05;font-variant-numeric:tabular-nums}
+.vdplus small{color:var(--muted);font-size:.8rem}
 .result{display:flex;flex-direction:column;gap:6px;border-top:1px solid var(--line);padding-top:12px}
 .big{font-family:var(--f-display);font-size:1.6rem;font-weight:700;line-height:1.1}
 .muted{color:var(--muted)}
@@ -106,8 +111,7 @@ details summary{cursor:pointer;font-family:var(--f-display);font-weight:700;font
   <header>
     <span class="eyebrow">Sorties LSR · groupes de niveau</span>
     <h1>Index VD+ LSR<span id="who"></span></h1>
-    <p class="formula">VD+ = (Distance + D+ / <b id="xxLbl">100</b>) / temps &nbsp;=&nbsp; V + VAM / <b id="xxLbl2">100</b></p>
-    <p class="lede">Charge ton historique Strava : chaque sortie vélo devient un point sur les zones de couleur LSR, et ta courbe moyenne te dit quel groupe choisir sur chaque type de terrain.</p>
+    <p class="lede">Charge ton historique Strava : chaque sortie vélo devient un point sur les zones de couleur LSR. Ta courbe te dit quel groupe choisir sur chaque type de terrain, et ton VD+ résume ton niveau en deux chiffres.</p>
   </header>
 
   <section class="panel import" id="importPanel">
@@ -130,16 +134,11 @@ details summary{cursor:pointer;font-family:var(--f-display);font-weight:700;font
 
   <section class="grid-main">
     <div class="panel">
-      <div class="chart-box"><canvas id="chart" aria-label="Graphique VD+ en fonction de la pente moyenne"></canvas></div>
+      <div class="chart-box"><canvas id="chart" aria-label="Vitesse des sorties en fonction de la pente moyenne"></canvas></div>
       <p class="src" id="summary"></p>
     </div>
     <aside class="panel" aria-label="Réglages">
       <h2>Réglages</h2>
-      <div class="ctl">
-        <label for="xx">Coefficient xx <output id="xxOut">100</output></label>
-        <input type="range" id="xx" min="20" max="200" step="1" value="100">
-        <small>Nombre de mètres de D+ qui valent 1 km de plat. Il règle aussi la décroissance des zones : chaque bande est un VD+ constant, ramené en vitesse par V = VD+ / (1 + 10 × pente / xx). 100 reproduit le graphique de Vincent ; son calcul de tête (V + 2 × VAM en centaines de m) correspond à 50.</small>
-      </div>
       <div class="ctl">
         <label>Temps utilisé</label>
         <div class="seg" role="group" aria-label="Temps utilisé">
@@ -178,16 +177,18 @@ details summary{cursor:pointer;font-family:var(--f-display);font-weight:700;font
       <div class="result" id="planOut"></div>
     </div>
     <div class="panel">
-      <h2>Calibrer xx</h2>
-      <p class="muted">Le bon xx est celui qui rend le VD+ d'un rider constant quelle que soit la pente : sa courbe suit alors ses bandes. On cherche, pour chaque rider, le xx qui aplatit la régression de son VD+. La médiane sur tous les riders du club donne le xx à retenir.</p>
+      <h2>Ton VD+</h2>
+      <p class="muted">Droite de régression linéaire de ta vitesse en fonction de la pente. Le <b>VD+</b> est ta vitesse à 0 % de pente. Le <b>coefficient VD+</b> est la pente de la droite : ce que tu perds en km/h par point de pente.</p>
+      <div class="vdplus" id="vdplus"></div>
       <dl class="kv" id="calib"></dl>
+      <div class="row"><button class="btn" type="button" id="copyStats" hidden>Copier mes chiffres</button><span class="src" id="copyStatsMsg"></span></div>
     </div>
   </section>
 
   <section class="two">
     <div class="panel">
       <h2>Pas d'archive sous la main ?</h2>
-      <p class="muted">Si tu utilises Claude avec le connecteur Strava, ce prompt fait le même calcul sans passer par l'archive.</p>
+      <p class="muted">Si tu utilises Claude avec le connecteur Strava, ce prompt donne ton VD+ et tes couleurs sans passer par l'archive.</p>
     </div>
     <div class="panel">
       <h2>Le prompt Strava</h2>
@@ -195,18 +196,18 @@ details summary{cursor:pointer;font-family:var(--f-display);font-weight:700;font
 
 Pour chaque sortie, calcule avec le temps en mouvement :
 - V = distance (km) / temps (h)
-- VAM = D+ (m) / temps (h)
 - pente moyenne = D+ / distance, en %
-- VD+ = V + VAM / 100
+Écarte les sorties de plus de 3,5 % de pente moyenne.
 
-Trace la vitesse V en fonction de la pente moyenne, avec une régression polynomiale d'ordre 2.
+1. Trace V en fonction de la pente moyenne, avec une régression polynomiale d'ordre 2 (mon profil).
+2. Calcule la régression linéaire de V en fonction de la pente : l'ordonnée à l'origine est mon VD+ (vitesse à 0 %), la pente de la droite est mon coefficient VD+ (km/h par % de pente).
 
-Zones de couleur LSR, en VD+ constant : Gris 35 à 39, Rouge 31 à 35, Bleu 27 à 31, Vert 23 à 27, Blanc 19 à 23.
-Pour les tracer en vitesse : V = VD+ / (1 + 10 × pente en % / 100).
+Zones de couleur LSR, vitesse à 0 % : Gris 35 à 39, Rouge 31 à 35, Bleu 27 à 31, Vert 23 à 27, Blanc 19 à 23.
+Elles décroissent avec la pente : V(pente) = V(0) / (1 + 15 × pente), pente en décimal (3,5 % = 0,035).
 
-Terrains : Plat &lt; 0,5 %, Vallonné 0,5 à 1,5 %, Escarpé 1,5 à 2,5 %, Abrupte &gt; 2,5 %.
+Terrains : Plat &lt; 0,5 %, Vallonné 0,5 à 1,5 %, Escarpé 1,5 à 2,5 %, Abrupte 2,5 à 3,5 %.
 
-Donne-moi ma couleur sur chaque terrain (deux couleurs si je suis à moins de 20 % d'une frontière), puis le xx qui rend la régression de mon VD+ plate (pente nulle).</pre>
+Donne-moi mon VD+, mon coefficient VD+, et ma couleur sur chaque terrain lue sur ma courbe polynomiale (deux couleurs si je suis à moins de 20 % d'une frontière).</pre>
       <div class="row"><button class="btn" type="button" id="copy">Copier le prompt</button><span class="src" id="copyMsg"></span></div>
     </div>
   </section>
@@ -215,12 +216,12 @@ Donne-moi ma couleur sur chaque terrain (deux couleurs si je suis à moins de 20
     <details>
       <summary>Détail des sorties</summary>
       <div class="tbl-wrap" style="margin-top:12px">
-        <table><thead><tr><th>Date</th><th>Sortie</th><th>km</th><th>D+</th><th>Pente</th><th>V</th><th>VAM</th><th>VD+</th><th>Zone</th></tr></thead><tbody id="tbody"></tbody></table>
+        <table><thead><tr><th>Date</th><th>Sortie</th><th>km</th><th>D+</th><th>Pente</th><th>Vitesse</th><th>Zone</th></tr></thead><tbody id="tbody"></tbody></table>
       </div>
     </details>
   </section>
 
-  <p class="src">Zones relevées sur le graphique « Estimation Index VD+ » de Vincent : limites à 39, 35, 31, 27, 23 et 19 km/h sur le plat, en VD+ constant, tracées en vitesse avec xx = 100. Prototype, pas encore calibré sur le club.</p>
+  <p class="src">Zones LSR : vitesse sur le plat de 39, 35, 31, 27, 23 et 19 km/h, qui décroît avec la pente selon V(pente) = V(0) / (1 + 15 × pente), la pente étant exprimée en décimal (3,5 % = 0,035). Prototype, pas encore calibré sur le club.</p>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
@@ -230,14 +231,15 @@ const TYPES={r:"Sorties vélo",u:"Trajets marqués « Commute »"};
 const ZONES=[{n:"Gris",v:"--z-gris"},{n:"Rouge",v:"--z-rouge"},{n:"Bleu",v:"--z-bleu"},{n:"Vert",v:"--z-vert"},{n:"Blanc",v:"--z-blanc"}];
 const GMAX=3.5; // pente moyenne max prise en compte (%)
 const B0=[39,35,31,27,23,19]; // limites des zones à pente 0 (km/h)
+const XX=15; // décroissance des zones : V(p) = V(0) / (1 + XX × p), p en décimal
 const TERRAINS=[{n:"Plat",a:0,b:.5,m:.3},{n:"Vallonné",a:.5,b:1.5,m:1},{n:"Escarpé",a:1.5,b:2.5,m:2},{n:"Abrupte",a:2.5,b:99,m:3}];
 
-const state={rides:[],rider:"",xx:100,time:"tm",types:{r:true,u:false},minKm:20};
+const state={rides:[],rider:"",time:"tm",types:{r:true,u:false},minKm:20};
 const css=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
 const fr=(x,d=1)=>x.toLocaleString("fr-FR",{minimumFractionDigits:d,maximumFractionDigits:d});
 const $=id=>document.getElementById(id);
 
-function bounds(g,xx=state.xx){return B0.map(b=>b/(1+10*g/xx))}
+function bounds(g){return B0.map(b=>b/(1+XX*g/100))}
 function zoneOf(g,v){
   const bd=bounds(g);
   let i=-1;
@@ -250,12 +252,18 @@ function zoneOf(g,v){
   if(f<.2&&i<4)idx.push(i+1);
   return{idx,label:ZONES[i].n,f};
 }
-function compute(r,xx=state.xx){
+function compute(r){
   const t=(state.time==="tm"?r.tm:r.te)/3600;
-  const V=r.km/t,VAM=r.dp/t,g=r.dp/(r.km*10);
-  return{...r,V,VAM,g,vd:V+VAM/xx};
+  const V=r.km/t,g=r.dp/(r.km*10);
+  return{...r,V,g};
 }
 function selected(){return state.rides.filter(r=>state.types[r.ty]!==false&&r.km>=state.minKm&&r.tm>0)}
+function linfit(pts){
+  const n=pts.length;if(n<3)return null;let sx=0,sy=0,sxx=0,sxy=0;
+  for(const{x,y}of pts){sx+=x;sy+=y;sxx+=x*x;sxy+=x*y}
+  const d=n*sxx-sx*sx;if(Math.abs(d)<1e-9)return null;
+  const b=(n*sxy-sx*sy)/d,a=(sy-b*sx)/n;return{a,b};
+}
 function polyfit2(pts){
   const n=pts.length;if(n<4)return null;
   let s=[0,0,0,0,0],t=[0,0,0];
@@ -276,13 +284,14 @@ function buildChart(){
   chart=new Chart(ctx,{
     data:{datasets:[...zoneSets,
       {type:"scatter",label:"Sorties",data:[],pointStyle:"rectRot",pointRadius:5,pointHoverRadius:7,order:1},
-      {type:"line",label:"Profil moyen",data:[],borderDash:[7,5],borderWidth:2.5,pointRadius:0,fill:false,order:2}]},
+      {type:"line",label:"Profil moyen",data:[],borderDash:[7,5],borderWidth:2.5,pointRadius:0,fill:false,order:2},
+      {type:"line",label:"Droite VD+",data:[],borderWidth:1.5,pointRadius:0,fill:false,order:3}]},
     options:{responsive:true,maintainAspectRatio:false,animation:{duration:250},
       scales:{x:{type:"linear",min:0,max:3.5,grid:{},title:{display:true,text:"Pente moyenne (D+ / distance)"},ticks:{callback:v=>fr(v,1)+" %",stepSize:.5}},
               y:{min:10,max:40,grid:{},title:{display:true,text:"Vitesse moyenne de la sortie (km/h)"},ticks:{stepSize:5}}},
       plugins:{legend:{display:false},
         tooltip:{filter:i=>i.dataset.label==="Sorties",callbacks:{label:c=>{const r=c.raw.r;return[r.n+" ("+r.d+")",fr(r.km,0)+" km · "+r.dp+" m D+",
-          "Pente "+fr(r.g,2)+" % · V "+fr(r.V)+" km/h · VAM "+fr(r.VAM,0)+" m/h","VD+ "+fr(r.vd)+" km/h → "+zoneOf(r.g,r.V).label]}}}}},
+          "Pente "+fr(r.g,2)+" % · "+fr(r.V)+" km/h → "+zoneOf(r.g,r.V).label]}}}}},
     plugins:[{id:"terrains",afterDraw(c){
       const{ctx,chartArea:a,scales:{x}}=c;ctx.save();ctx.font="600 12px Barlow, sans-serif";ctx.fillStyle=css("--muted");ctx.textAlign="center";
       [[0,.5,"Plat"],[.5,1.5,"Vallonné"],[1.5,2.5,"Escarpé"],[2.5,3.5,"Abrupte"]].forEach(([s,e,l])=>{
@@ -301,6 +310,7 @@ function themeChart(){
   const edge=chart.data.datasets[5];edge.borderWidth=1.5;edge.borderColor=css("--z-blanc-ink");
   const pts=chart.data.datasets[6];pts.backgroundColor=css("--point");pts.borderColor=css("--point");
   const reg=chart.data.datasets[7];reg.borderColor=css("--accent");
+  const lin=chart.data.datasets[8];lin.borderColor=css("--fg");
 }
 
 function chipHTML(idx){return idx.map(i=>`<span class="chip"><i style="background:var(${ZONES[i].v})"></i>${ZONES[i].n}</span>`).join("")}
@@ -317,12 +327,14 @@ function render(){
   const gmin=empty?0:Math.min(...pts.map(p=>p.x)),gmax=empty?0:Math.max(...pts.map(p=>p.x));
   const reg=[];if(fit)for(let g=gmin;g<=gmax+1e-9;g+=(gmax-gmin)/40||1)reg.push({x:g,y:fit(g)});
   chart.data.datasets[7].data=reg;
+  const L=empty?null:linfit(pts);
+  chart.data.datasets[8].data=L?[{x:0,y:L.a},{x:GMAX,y:L.a+L.b*GMAX}]:[];
   const ys=pts.map(p=>p.y);
   chart.options.scales.y.min=Math.max(0,Math.floor(Math.min(10,...ys)/5)*5);
   chart.options.scales.y.max=Math.ceil(Math.max(40,...ys)/5)*5;
   themeChart();chart.update();
 
-  $("summary").textContent=empty?"Aucune sortie chargée : les bandes montrent les zones de couleur LSR. Charge ton fichier activities.csv pour voir tes points et ta courbe.":`${rides.length} sorties affichées · ${state.rider} · temps ${state.time==="tm"?"en mouvement":"total"} · courbe orange : régression polynomiale d'ordre 2${tooSteep?` · ${tooSteep} sortie${tooSteep>1?"s":""} au-delà de 3,5 % de pente écartée${tooSteep>1?"s":""} (trop spécifique${tooSteep>1?"s":""})`:""}`;
+  $("summary").textContent=empty?"Aucune sortie chargée : les bandes montrent les zones de couleur LSR. Charge ton fichier activities.csv pour voir tes points et ta courbe.":`${rides.length} sorties affichées · ${state.rider} · temps ${state.time==="tm"?"en mouvement":"total"} · courbe orange : ton profil (régression polynomiale d'ordre 2) · trait fin : droite VD+ (régression linéaire)${tooSteep?` · ${tooSteep} sortie${tooSteep>1?"s":""} au-delà de 3,5 % de pente écartée${tooSteep>1?"s":""} (trop spécifique${tooSteep>1?"s":""})`:""}`;
 
   // terrains
   $("terrains").innerHTML=empty?TERRAINS.map(t=>`<div class="tcard"><div class="tname">${t.n}</div><div class="range">${t.b>9?"plus de "+fr(t.a,1)+" %":fr(t.a,1)+" à "+fr(t.b,1)+" %"} de pente moyenne</div><p class="muted">Ta couleur apparaît ici une fois tes sorties chargées.</p></div>`).join(""):TERRAINS.map(t=>{
@@ -332,7 +344,7 @@ function render(){
     const extrap=t.m<gmin-.15||t.m>gmax+.15;
     return`<div class="tcard"><div class="tname">${t.n}</div><div class="range">${t.b>9?"plus de "+fr(t.a,1)+" %":fr(t.a,1)+" à "+fr(t.b,1)+" %"} de pente moyenne</div>
       <div class="chips">${chipHTML(z.idx)}</div>
-      <div class="val">${fr(v)} km/h, soit VD+ ${fr(v*(1+10*t.m/state.xx))} · ${inT.length} sortie${inT.length>1?"s":""}</div>
+      <div class="val">${fr(v)} km/h attendus · ${inT.length} sortie${inT.length>1?"s":""}</div>
       ${extrap||inT.length<3?`<div class="warn">${extrap?"Extrapolé : pas de sortie sur ce terrain":"Peu de sorties sur ce terrain"}</div>`:""}</div>`}).join("");
 
   // planificateur
@@ -355,22 +367,25 @@ function render(){
       <div class="chips">${zoneTimes}</div>`;
   }else $("planOut").innerHTML=`<p class="muted">Entre une distance.</p>`;
 
-  // calibration : xx qui aplatit la régression VD+ = f(pente)
-  const slope=(arr)=>{const n=arr.length;if(n<3)return null;let sx=0,sy=0,sxx=0,sxy=0;for(const{x,y}of arr){sx+=x;sy+=y;sxx+=x*x;sxy+=x*y}const d=n*sxx-sx*sx;return Math.abs(d)<1e-9?null:(n*sxy-sx*sy)/d};
-  const vdPts=x=>rides.map(r=>{const c=compute(r,x);return{x:c.g,y:c.vd}});
-  const sNow=empty?null:slope(vdPts(state.xx));
-  let best=null,bestD=1e9;
-  if(!empty)for(let x=10;x<=400;x++){const sl=slope(vdPts(x));if(sl==null)continue;if(Math.abs(sl)<bestD){bestD=Math.abs(sl);best=x}}
-  $("calib").innerHTML=sNow==null?`<dt>Données</dt><dd>${empty?"Charge tes sorties pour calculer ton xx":"Pas assez de sorties"}</dd>`:`
-    <dt>Ton VD+ (xx = ${state.xx})</dt><dd>${sNow>0?"+":"−"}${fr(Math.abs(sNow),2)} km/h par % de pente</dd>
-    <dt>Lecture</dt><dd>${sNow<-.3?"Ton VD+ baisse quand ça grimpe : le D+ te coûte plus que ce xx ne le compte. Il te faut un xx plus bas. Profil rouleur.":sNow>.3?"Ton VD+ monte quand ça grimpe : le D+ te coûte moins que ce xx ne le compte. Il te faut un xx plus haut. Profil grimpeur.":"Ton VD+ est plat : ce xx te convient."}</dd>
-    <dt>xx qui t'aplatit</dt><dd>${best&&bestD<.05?best+" m de D+ = 1 km de plat":"hors plage 10 à 400"}</dd>
-    <dt></dt><dd><button class="btn ghost" type="button" id="useXX" ${best&&bestD<.05?"":"hidden"}>Appliquer xx = ${best}</button></dd>`;
-  const ub=$("useXX");if(ub)ub.onclick=()=>{$("xx").value=best;$("xx").dispatchEvent(new Event("input"))};
+  // VD+ et coefficient VD+
+  if(!L){
+    $("vdplus").innerHTML=`<div><span>VD+</span><b>–</b><small>vitesse à 0 %</small></div><div><span>Coefficient VD+</span><b>–</b><small>km/h par % de pente</small></div>`;
+    $("calib").innerHTML=`<dt>Données</dt><dd>${empty?"Charge tes sorties pour calculer ton VD+":"Pas assez de sorties"}</dd>`;
+    $("copyStats").hidden=true;
+  }else{
+    // xx équivalent : ajustement de V = V0 / (1 + xx·p) via 1/V = 1/V0 + (xx/100V0)·pente
+    const H=linfit(pts.map(q=>({x:q.x,y:1/q.y}))), xxR=H?H.b*100/H.a:NaN, z0=zoneOf(0,L.a);
+    $("vdplus").innerHTML=`<div><span>VD+</span><b>${fr(L.a)}</b><small>km/h à 0 % · ${z0.label}</small></div><div><span>Coefficient VD+</span><b>${L.b<0?"−":"+"}${fr(Math.abs(L.b),2)}</b><small>km/h par % de pente</small></div>`;
+    $("calib").innerHTML=`<dt>Sorties</dt><dd>${rides.length}, pente de ${fr(gmin,1)} à ${fr(gmax,1)} %</dd>
+      <dt>xx équivalent</dt><dd>${fr(xxR,1)} <span class="muted" style="font-weight:400">(zones : ${XX})</span></dd>
+      <dt>Lecture</dt><dd>${xxR>XX*1.1?"Tu perds plus que les zones quand ça grimpe : profil rouleur, ta couleur baisse sur les terrains pentus.":xxR<XX*.9?"Tu perds moins que les zones quand ça grimpe : profil grimpeur, ta couleur monte sur les terrains pentus.":"Ta décroissance suit celle des zones : même couleur sur tous les terrains."}</dd>`;
+    state.stats=`${state.rider||"Rider"} · VD+ ${fr(L.a)} km/h · coef VD+ ${L.b<0?"−":"+"}${fr(Math.abs(L.b),2)} km/h/% · xx équivalent ${fr(xxR,1)} · ${rides.length} sorties (${fr(gmin,1)} à ${fr(gmax,1)} %)`;
+    $("copyStats").hidden=false;
+  }
 
   // tableau
   $("tbody").innerHTML=rides.sort((a,b)=>b.d.localeCompare(a.d)).map(r=>{const z=zoneOf(r.g,r.V);
-    return`<tr><td>${r.d}</td><td class="nm" title="${r.n.replace(/"/g,"&quot;")}">${r.n}</td><td>${fr(r.km,1)}</td><td>${r.dp}</td><td>${fr(r.g,2)} %</td><td>${fr(r.V)}</td><td>${fr(r.VAM,0)}</td><td><b>${fr(r.vd)}</b></td><td><span class="dot" style="background:var(${ZONES[z.idx[0]].v})"></span>${z.label}</td></tr>`}).join("");
+    return`<tr><td>${r.d}</td><td class="nm" title="${r.n.replace(/"/g,"&quot;")}">${r.n}</td><td>${fr(r.km,1)}</td><td>${r.dp}</td><td>${fr(r.g,2)} %</td><td><b>${fr(r.V)}</b></td><td><span class="dot" style="background:var(${ZONES[z.idx[0]].v})"></span>${z.label}</td></tr>`}).join("");
 }
 
 function buildTypes(){
@@ -429,7 +444,7 @@ drop.addEventListener("drop",e=>{const f=e.dataTransfer.files[0];if(f)loadFile(f
 $("reset").addEventListener("click",()=>{state.rides=[];state.rider="";$("who").textContent="";$("file").value="";$("reset").hidden=true;$("importMsg").textContent="Sorties effacées.";buildTypes();render()});
 
 // --- contrôles ---
-$("xx").addEventListener("input",e=>{state.xx=+e.target.value;$("xxOut").textContent=state.xx;$("xxLbl").textContent=state.xx;$("xxLbl2").textContent=state.xx;render()});
+$("copyStats").addEventListener("click",()=>{navigator.clipboard.writeText(state.stats).then(()=>{$("copyStatsMsg").textContent="Copié. Envoie-le à Vincent."}).catch(()=>{$("copyStatsMsg").textContent=state.stats})});
 $("minKm").addEventListener("input",e=>{state.minKm=+e.target.value;$("minKmOut").textContent=state.minKm+" km";render()});
 $("tMoving").addEventListener("click",()=>{state.time="tm";$("tMoving").setAttribute("aria-pressed","true");$("tElapsed").setAttribute("aria-pressed","false");render()});
 $("tElapsed").addEventListener("click",()=>{state.time="te";$("tMoving").setAttribute("aria-pressed","false");$("tElapsed").setAttribute("aria-pressed","true");render()});
