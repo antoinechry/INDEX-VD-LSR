@@ -1,5 +1,7 @@
 # Index VD+ LSR
 
+**Page en ligne : https://antoinechry.github.io/INDEX-VD-LSR/**
+
 Outil pour former des groupes de niveau homogènes sur les sorties LSR.
 
 Chaque rider charge son historique Strava. Ses sorties vélo sont placées sur un graphique vitesse / pente moyenne, avec les zones de couleur du club (gris, rouge, bleu, vert, blanc). Il voit quelle couleur choisir selon le terrain, et obtient son VD+.
